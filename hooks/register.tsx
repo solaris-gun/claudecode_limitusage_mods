@@ -7,6 +7,7 @@ import {
   cellWidth,
   clampWidth,
   colorFor,
+  describeWindows,
   isInline,
   padLabel,
   percentText,
@@ -30,10 +31,22 @@ export const register: Register = (on, options) => {
   // 起動直後（リロード後も含む）に、その時点の数値を取り込む
   on('session.start', async ($, e, next) => {
     const result = await next(e)
+    await $.command.register({
+      name: 'limit-bars',
+      description: 'Claude Code から届いているレートリミットの枠の名前と使用率を一覧表示する',
+    })
     const { rateLimits } = await $.session.usage()
     await update($, windows, () => toWindows(rateLimits))
 
     return result
+  })
+
+  on('command.run', { command: 'limit-bars' }, async $ => {
+    const { rateLimits } = await $.session.usage()
+    const latest = toWindows(rateLimits)
+    await update($, windows, () => latest)
+
+    return { text: describeWindows(latest, fableWindow) }
   })
 
   // API 応答ごと・枠が 1 ポイント動くごとにエンジンから届く
