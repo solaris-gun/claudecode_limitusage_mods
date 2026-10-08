@@ -1,4 +1,4 @@
-import type { LimitWindow } from '../types'
+import type { FableReading, LimitWindow } from '../types'
 
 export type BarRow = {
   key: string
@@ -7,35 +7,57 @@ export type BarRow = {
 }
 
 export type Layout = 'auto' | 'inline' | 'stacked'
+export type BarStyle = 'half' | 'line' | 'block'
+export type LabelStyle = 'short' | 'long'
 
-const FILLED = '█'
-const EMPTY = '░'
+// 埋まった部分と空き部分の文字。half はマスの下半分だけを塗るので背が低く見える
+const GLYPHS: Record<BarStyle, { filled: string; empty: string }> = {
+  half: { filled: '▄', empty: '▁' },
+  line: { filled: '━', empty: '─' },
+  block: { filled: '█', empty: '░' },
+}
 
-// 表示順は 5時間 → Weekly → Fable
-export function pickRows(windows: readonly LimitWindow[], fableWindow: string): BarRow[] {
+const LABELS: Record<LabelStyle, readonly [string, string, string]> = {
+  short: ['5h', 'W', 'F'],
+  long: ['5時間', 'Weekly', 'Fable'],
+}
+
+// 表示順は 5時間 → Weekly → Fable。Fable はエンジンの枠になければ使用量 API の値を使う
+export function pickRows(
+  windows: readonly LimitWindow[],
+  fableWindow: string,
+  fable: FableReading | null = null,
+  labelStyle: LabelStyle = 'long',
+): BarRow[] {
   const needle = fableWindow.toLowerCase()
   const find = (match: (kind: string) => boolean) =>
     windows.find(w => match(w.kind.toLowerCase()))?.percentUsed ?? null
+  const [fiveHour, weekly, fableLabel] = LABELS[labelStyle]
+  const fableFromWindows = needle === '' ? null : find(k => k.includes(needle))
 
   return [
-    { key: 'five-hour', label: '5時間', percent: find(k => k === 'five_hour') },
-    { key: 'weekly', label: 'Weekly', percent: find(k => k === 'seven_day') },
-    {
-      key: 'fable',
-      label: 'Fable',
-      percent: needle === '' ? null : find(k => k.includes(needle)),
-    },
+    { key: 'five-hour', label: fiveHour, percent: find(k => k === 'five_hour') },
+    { key: 'weekly', label: weekly, percent: find(k => k === 'seven_day') },
+    { key: 'fable', label: fableLabel, percent: fableFromWindows ?? fable?.percent ?? null },
   ]
 }
 
 export function clampWidth(value: unknown): number {
-  const n = typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : 12
+  const n = typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : 8
 
   return Math.min(40, Math.max(4, n))
 }
 
 export function toLayout(value: unknown): Layout {
   return value === 'inline' || value === 'stacked' ? value : 'auto'
+}
+
+export function toBarStyle(value: unknown): BarStyle {
+  return value === 'line' || value === 'block' ? value : 'half'
+}
+
+export function toLabelStyle(value: unknown): LabelStyle {
+  return value === 'long' ? 'long' : 'short'
 }
 
 // 0〜49% 緑、50〜79% 黄、80% 以上 赤（テーマの色に従う）
@@ -47,11 +69,16 @@ export function colorFor(percent: number): 'success' | 'warning' | 'error' {
   return percent >= 50 ? 'warning' : 'success'
 }
 
-export function splitBar(percent: number | null, width: number): { filled: string; empty: string } {
+export function splitBar(
+  percent: number | null,
+  width: number,
+  style: BarStyle = 'block',
+): { filled: string; empty: string } {
   const ratio = percent === null ? 0 : Math.min(100, Math.max(0, percent)) / 100
   const cells = Math.round(ratio * width)
+  const glyphs = GLYPHS[style]
 
-  return { filled: FILLED.repeat(cells), empty: EMPTY.repeat(width - cells) }
+  return { filled: glyphs.filled.repeat(cells), empty: glyphs.empty.repeat(width - cells) }
 }
 
 export function percentText(percent: number | null): string {
@@ -72,7 +99,7 @@ export function padLabel(label: string, cells: number): string {
   return label + ' '.repeat(Math.max(0, cells - cellWidth(label)))
 }
 
-const GAP = 3
+const GAP = 2
 
 // 横一列に並べたときの全体幅
 export function inlineWidth(rows: readonly BarRow[], barWidth: number): number {
@@ -91,26 +118,40 @@ export function isInline(layout: Layout, rows: readonly BarRow[], barWidth: numb
 
 export const SEGMENT_GAP = GAP
 
-// /limit-bars コマンドの出力: Claude Code から届いている枠をそのまま並べる
-export function describeWindows(windows: readonly LimitWindow[], fableWindow: string): string {
-  if (windows.length === 0) {
-    return [
-      'レートリミットの数値がまだ 1 つも届いていません。',
-      '・起動直後なら、何か 1 回やり取りしてから再度実行してください',
-      '・API キーで利用している場合は数値が届きません（サブスクリプションでのログインが必要です）',
-    ].join('\n')
+// /limit-bars コマンドの出力: Claude Code から届いている枠と、使用量 API の取得結果を並べる
+export function describeWindows(
+  windows: readonly LimitWindow[],
+  fableWindow: string,
+  fable: FableReading | null = null,
+): string {
+  const lines =
+    windows.length === 0
+      ? [
+          'レートリミットの数値がまだ 1 つも届いていません。',
+          '・起動直後なら、何か 1 回やり取りしてから再度実行してください',
+          '・API キーで利用している場合は数値が届きません（サブスクリプションでのログインが必要です）',
+        ]
+      : [
+          'Claude Code から届いているレートリミットの枠:',
+          ...windows.map(w => {
+            const reset = w.resetsAt === undefined ? '' : `（リセット: ${w.resetsAt}）`
+
+            return `・${w.kind}: ${w.percentUsed}%${reset}`
+          }),
+        ]
+  const percent = pickRows(windows, fableWindow, fable)[2]?.percent ?? null
+  const note =
+    percent === null
+      ? `Fable の使用率は見つかりませんでした。「/limit-bars raw」で使用量の応答をそのまま表示できます。`
+      : `Fable のバーには ${percent}% を表示しています。`
+
+  return [...lines, '', `Fable（使用量 API）: ${fable?.note ?? 'まだ取得していません'}`, note].join('\n')
+}
+
+export function describeRaw(fable: FableReading | null): string {
+  if (fable === null || fable.raw === '') {
+    return `使用量の応答はまだありません。${fable === null ? '' : fable.note}`
   }
 
-  const lines = windows.map(w => {
-    const reset = w.resetsAt === undefined ? '' : `（リセット: ${w.resetsAt}）`
-
-    return `・${w.kind}: ${w.percentUsed}%${reset}`
-  })
-  const fable = pickRows(windows, fableWindow)[2]?.percent ?? null
-  const note =
-    fable === null
-      ? `Fable 枠の識別子「${fableWindow}」を含む枠はありません。上の一覧に Fable の枠があれば、その名前を教えてください。`
-      : `Fable のバーには「${fableWindow}」を含む枠の値（${fable}%）を表示しています。`
-
-  return ['Claude Code から届いているレートリミットの枠:', ...lines, '', note].join('\n')
+  return ['使用量 API の応答（先頭 4000 文字）:', fable.raw].join('\n')
 }

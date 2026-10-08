@@ -1,17 +1,38 @@
 {
   "name": "limit-bars",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "プロンプトの上に Weekly / 5時間 / Fable の使用率を色付きバーで常時表示する",
   "author": {
     "name": "solaris-gun"
   },
   "types": "./types/index.d.ts",
   "userConfig": {
+    "barStyle": {
+      "type": "string",
+      "title": "バーの形",
+      "description": "half: マスの下半分だけ塗る（背が低い） / line: 細い線 / block: マス全体を塗る",
+      "options": [
+        "half",
+        "line",
+        "block"
+      ],
+      "default": "half"
+    },
+    "labelStyle": {
+      "type": "string",
+      "title": "ラベル",
+      "description": "short: 5h / W / F / long: 5時間 / Weekly / Fable",
+      "options": [
+        "short",
+        "long"
+      ],
+      "default": "short"
+    },
     "barWidth": {
       "type": "number",
       "title": "バーの長さ",
       "description": "1本のバーの文字数（4〜40）",
-      "default": 12
+      "default": 8
     },
     "layout": {
       "type": "string",
@@ -27,8 +48,14 @@
     "fableWindow": {
       "type": "string",
       "title": "Fable 枠の識別子",
-      "description": "Fable の使用率として扱うレートリミット枠の kind に含まれる文字列",
+      "description": "Fable を見分ける文字列（枠の名前やモデル名に含まれるもの）",
       "default": "fable"
+    },
+    "fetchUsage": {
+      "type": "boolean",
+      "title": "Fable を使用量 API から取得する",
+      "description": "Claude Code の /usage と同じ取得先（公式ドキュメントのない https://api.anthropic.com/api/oauth/usage）に 2 分以上の間隔で問い合わせる",
+      "default": true
     }
   }
 }
