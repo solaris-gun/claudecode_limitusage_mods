@@ -90,3 +90,27 @@ export function isInline(layout: Layout, rows: readonly BarRow[], barWidth: numb
 }
 
 export const SEGMENT_GAP = GAP
+
+// /limit-bars コマンドの出力: Claude Code から届いている枠をそのまま並べる
+export function describeWindows(windows: readonly LimitWindow[], fableWindow: string): string {
+  if (windows.length === 0) {
+    return [
+      'レートリミットの数値がまだ 1 つも届いていません。',
+      '・起動直後なら、何か 1 回やり取りしてから再度実行してください',
+      '・API キーで利用している場合は数値が届きません（サブスクリプションでのログインが必要です）',
+    ].join('\n')
+  }
+
+  const lines = windows.map(w => {
+    const reset = w.resetsAt === undefined ? '' : `（リセット: ${w.resetsAt}）`
+
+    return `・${w.kind}: ${w.percentUsed}%${reset}`
+  })
+  const fable = pickRows(windows, fableWindow)[2]?.percent ?? null
+  const note =
+    fable === null
+      ? `Fable 枠の識別子「${fableWindow}」を含む枠はありません。上の一覧に Fable の枠があれば、その名前を教えてください。`
+      : `Fable のバーには「${fableWindow}」を含む枠の値（${fable}%）を表示しています。`
+
+  return ['Claude Code から届いているレートリミットの枠:', ...lines, '', note].join('\n')
+}

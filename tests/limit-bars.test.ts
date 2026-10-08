@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { colorFor, inlineWidth, percentText, pickRows, splitBar } from '../hooks/bars'
+import { colorFor, describeWindows, inlineWidth, percentText, pickRows, splitBar } from '../hooks/bars'
 
 const band = (bodyColumns: number) =>
   ({
@@ -57,6 +57,15 @@ describe('bars', () => {
     expect(splitBar(null, 4).empty).toBe('░░░░')
     expect(percentText(7)).toBe('  7%')
     expect(percentText(null)).toBe(' --%')
+  })
+
+  test('describes every window it received', () => {
+    const text = describeWindows([{ kind: 'five_hour', percentUsed: 61 }, { kind: 'seven_day_opus', percentUsed: 5 }], 'fable')
+    expect(text).toMatch(/five_hour: 61%/)
+    expect(text).toMatch(/seven_day_opus: 5%/)
+    expect(text).toMatch(/「fable」を含む枠はありません/)
+    expect(describeWindows(measured.rateLimits, 'fable')).toMatch(/92.4%/)
+    expect(describeWindows([], 'fable')).toMatch(/まだ 1 つも届いていません/)
   })
 })
 

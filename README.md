@@ -40,6 +40,20 @@ claude --plugin-dir ./claudecode_limitusage_mods
 | `layout` | `auto` | `auto`: 幅が足りれば横一列、足りなければ縦 / `inline`: 常に横一列 / `stacked`: 常に縦 |
 | `fableWindow` | `fable` | Fable の使用率として扱う枠の名前（`kind`）に含まれる文字列 |
 
+## 届いている枠を確かめる（`/limit-bars`）
+
+プロンプトで `/limit-bars` と入力すると、Claude Code から届いているレートリミットの枠の名前（`kind`）と使用率を一覧表示します。
+
+```
+Claude Code から届いているレートリミットの枠:
+・five_hour: 61%（リセット: 2026-10-08T09:00:00Z）
+・seven_day: 23.5%（リセット: 2026-10-13T00:00:00Z）
+
+Fable 枠の識別子「fable」を含む枠はありません。上の一覧に Fable の枠があれば、その名前を教えてください。
+```
+
+Fable のバーが `--%` のままのときは、ここに出た Fable の枠の名前（の一部）を `/config` の `fableWindow` に設定してください。
+
 ## 数値の取得元
 
 Claude Code のステータスラインと同じ数値を使います。API の応答ごと、または枠の使用率が 1 ポイント動くたびに Claude Code から通知（`session.measure`）が届き、そのたびにバーが更新されます。
@@ -52,7 +66,7 @@ Claude Code のステータスラインと同じ数値を使います。API の�
 
 ## 注意点
 
-- **Fable の枠名は推測です。** Claude Code が公開している型定義に載っている枠は `five_hour` と `seven_day`（およびゲートウェイの `spend_limit`）だけで、Fable 専用の枠の名前は書かれていません。`seven_day_fable` のように `fable` を含む名前で届くと想定しています。Fable のバーが `--%` のままの場合は、実際の枠名に合わせて `fableWindow` を変更してください。
+- **Fable の枠名は推測です。** Claude Code が公開している型定義に載っている枠は `five_hour` と `seven_day`（およびゲートウェイの `spend_limit`）だけで、Fable 専用の枠の名前は書かれていません。`seven_day_fable` のように `fable` を含む名前で届くと想定しています。Fable のバーが `--%` のままの場合は、`/limit-bars` で実際の枠名を確かめ、`fableWindow` を変更してください。
 - 数値が届くのは Claude のサブスクリプション（Pro / Max など）でログインしている場合だけです。API キーで使っている場合は、すべて `--%` のままになります。
 - 起動直後は最初の API 応答が返るまで `--%` と表示されます。
 - バー右端の `[-]` で折りたたむことができます。
