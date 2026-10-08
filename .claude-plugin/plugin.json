@@ -1,6 +1,6 @@
 {
   "name": "limit-bars",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "プロンプトの上に Weekly / 5時間 / Fable の使用率を色付きバーで常時表示する",
   "author": {
     "name": "solaris-gun"
@@ -50,6 +50,17 @@
       "title": "Fable 枠の識別子",
       "description": "Fable を見分ける文字列（枠の名前やモデル名に含まれるもの）",
       "default": "fable"
+    },
+    "showFable": {
+      "type": "string",
+      "title": "Fable のバー",
+      "description": "auto: 使用量の応答に Fable の枠がなければ（Pro プランなど）出さない / always: 常に出す / never: 出さない",
+      "options": [
+        "auto",
+        "always",
+        "never"
+      ],
+      "default": "auto"
     },
     "fetchUsage": {
       "type": "boolean",

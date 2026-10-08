@@ -9,6 +9,7 @@ export type BarRow = {
 export type Layout = 'auto' | 'inline' | 'stacked'
 export type BarStyle = 'half' | 'line' | 'block'
 export type LabelStyle = 'short' | 'long'
+export type ShowFable = 'auto' | 'always' | 'never'
 
 // 埋まった部分と空き部分の文字。half はマスの下半分だけを塗るので背が低く見える
 const GLYPHS: Record<BarStyle, { filled: string; empty: string }> = {
@@ -42,6 +43,16 @@ export function pickRows(
   ]
 }
 
+// auto: 使用量 API の応答に Fable の枠がなければ（Pro プランなど）Fable のバーを出さない。
+// 取得に失敗したときやまだ取得していないときは、--% のまま出しておく
+export function visibleRows(rows: readonly BarRow[], showFable: ShowFable, fable: FableReading | null): BarRow[] {
+  const hideFable =
+    showFable === 'never' ||
+    (showFable === 'auto' && fable?.absent === true && rows.find(r => r.key === 'fable')?.percent == null)
+
+  return hideFable ? rows.filter(r => r.key !== 'fable') : [...rows]
+}
+
 export function clampWidth(value: unknown): number {
   const n = typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : 8
 
@@ -54,6 +65,10 @@ export function toLayout(value: unknown): Layout {
 
 export function toBarStyle(value: unknown): BarStyle {
   return value === 'line' || value === 'block' ? value : 'half'
+}
+
+export function toShowFable(value: unknown): ShowFable {
+  return value === 'always' || value === 'never' ? value : 'auto'
 }
 
 export function toLabelStyle(value: unknown): LabelStyle {
@@ -141,9 +156,11 @@ export function describeWindows(
         ]
   const percent = pickRows(windows, fableWindow, fable)[2]?.percent ?? null
   const note =
-    percent === null
-      ? `Fable の使用率は見つかりませんでした。「/limit-bars raw」で使用量の応答をそのまま表示できます。`
-      : `Fable のバーには ${percent}% を表示しています。`
+    percent !== null
+      ? `Fable のバーには ${percent}% を表示しています。`
+      : fable?.absent === true
+        ? 'このプランの使用量には Fable の枠がないため（Pro プランなど）、Fable のバーは表示していません。'
+        : 'Fable の使用率は見つかりませんでした。「/limit-bars raw」で使用量の応答をそのまま表示できます。'
 
   return [...lines, '', `Fable（使用量 API）: ${fable?.note ?? 'まだ取得していません'}`, note].join('\n')
 }

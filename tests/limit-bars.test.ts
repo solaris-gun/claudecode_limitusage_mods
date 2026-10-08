@@ -1,7 +1,16 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
-import { colorFor, describeRaw, describeWindows, inlineWidth, percentText, pickRows, splitBar } from '../hooks/bars'
+import {
+  colorFor,
+  describeRaw,
+  describeWindows,
+  inlineWidth,
+  percentText,
+  pickRows,
+  splitBar,
+  visibleRows,
+} from '../hooks/bars'
 import { USAGE_URL, findScopedPercent, readingFrom } from '../hooks/usage-api'
 
 const band = (bodyColumns: number) =>
@@ -105,6 +114,28 @@ describe('bars', () => {
   })
 })
 
+describe('fable visibility', () => {
+  const rows = pickRows(measured.rateLimits, 'fable')
+  const absent = readingFrom(200, JSON.stringify({ limits: [{ kind: 'session', percent: 3 }] }), 'fable')
+  const failed = readingFrom(500, 'oops', 'fable')
+
+  test('auto hides Fable only when the usage response has no Fable entry', () => {
+    expect(absent.absent).toBe(true)
+    expect(visibleRows(rows, 'auto', absent).map(r => r.key)).toEqual(['five-hour', 'weekly'])
+    expect(visibleRows(rows, 'auto', failed).map(r => r.key)).toEqual(['five-hour', 'weekly', 'fable'])
+    expect(visibleRows(rows, 'auto', null).map(r => r.key)).toEqual(['five-hour', 'weekly', 'fable'])
+  })
+
+  test('always and never override the response', () => {
+    expect(visibleRows(rows, 'always', absent)).toHaveLength(3)
+    expect(visibleRows(rows, 'never', null).map(r => r.key)).toEqual(['five-hour', 'weekly'])
+  })
+
+  test('the command says why the Fable bar is hidden', () => {
+    expect(describeWindows(measured.rateLimits, 'fable', absent)).toMatch(/Pro プランなど/)
+  })
+})
+
 describe('usage api', () => {
   test('finds the Fable entry in the limits array', () => {
     expect(findScopedPercent(usageBody, 'fable')).toEqual({ percent: 34, resetsAt: '2026-10-09T01:00:00Z' })
@@ -164,6 +195,26 @@ test('stacks the bars when the row is too narrow', async ($, on) => {
 })
 
 test('shows placeholders before any reading', async $ => {
+  const ui = await $.ui.mount({ ...band(80), surface: 'terminal' })
+  expect((await ui.find({ key: 'fable' }))?.text).toMatch(/--%/)
+  await ui.unmount()
+})
+
+test('a plan without a Fable limit shows only 5h and W', async ($, on) => {
+  engine(on, { status: 200, text: JSON.stringify({ limits: [{ kind: 'session', percent: 61 }] }) })
+  await $.session.measure(measured as never)
+
+  const ui = await $.ui.mount({ ...band(80), surface: 'terminal' })
+  expect(await ui.find({ key: 'five-hour' })).toBeDefined()
+  expect(await ui.find({ key: 'weekly' })).toBeDefined()
+  expect(await ui.find({ key: 'fable' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('showFable always keeps the Fable bar', { options: { showFable: 'always' } }, async ($, on) => {
+  engine(on, { status: 200, text: JSON.stringify({ limits: [{ kind: 'session', percent: 61 }] }) })
+  await $.session.measure(measured as never)
+
   const ui = await $.ui.mount({ ...band(80), surface: 'terminal' })
   expect((await ui.find({ key: 'fable' }))?.text).toMatch(/--%/)
   await ui.unmount()

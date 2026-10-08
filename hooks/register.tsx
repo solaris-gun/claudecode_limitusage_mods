@@ -14,8 +14,10 @@ import {
   percentText,
   pickRows,
   splitBar,
+  visibleRows,
   toBarStyle,
   toLabelStyle,
+  toShowFable,
   toLayout,
 } from './bars'
 import { USAGE_BETA, USAGE_URL, failedReading, readingFrom } from './usage-api'
@@ -67,6 +69,7 @@ export const register: Register = (on, options) => {
   const labelStyle = toLabelStyle(options.labelStyle)
   const fableWindow = typeof options.fableWindow === 'string' ? options.fableWindow : 'fable'
   const fetchUsage = options.fetchUsage !== false
+  const showFable = toShowFable(options.showFable)
 
   // 起動直後（リロード後も含む）に、その時点の数値を取り込む
   on('session.start', async ($, e, next) => {
@@ -113,7 +116,8 @@ export const register: Register = (on, options) => {
     }
 
     const { Box, Text } = $.ui.resolve(e)
-    const rows = pickRows(await read($, windows), fableWindow, await read($, fable), labelStyle)
+    const reading = await read($, fable)
+    const rows = visibleRows(pickRows(await read($, windows), fableWindow, reading, labelStyle), showFable, reading)
     const inline = isInline(layout, rows, barWidth, e.props.bodyColumns)
     const labelCells = inline ? 0 : Math.max(...rows.map(r => cellWidth(r.label)))
 
