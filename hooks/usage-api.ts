@@ -65,7 +65,7 @@ export function readingFrom(status: number, text: string, needle: string): Fable
 
   const found = findScopedPercent(body, needle)
   if (found === null) {
-    return { percent: null, note: `使用量の応答に「${needle}」を含む枠がありませんでした`, raw }
+    return { percent: null, absent: true, note: `使用量の応答に「${needle}」を含む枠がありませんでした`, raw }
   }
 
   return { ...found, note: `使用量の応答から取得しました（${found.percent}%）`, raw }

@@ -42,6 +42,7 @@ claude --plugin-dir ./claudecode_limitusage_mods
 | `barWidth` | `8` | 1 本のバーの文字数（4〜40） |
 | `layout` | `auto` | `auto`: 幅が足りれば横一列、足りなければ縦 / `inline`: 常に横一列 / `stacked`: 常に縦 |
 | `fableWindow` | `fable` | Fable を見分ける文字列（枠の名前やモデル名に含まれるもの） |
+| `showFable` | `auto` | `auto`: 使用量 API の応答に Fable の枠がなければ（Pro プランなど）Fable のバーを出さない / `always`: 常に出す / `never`: 出さない |
 | `fetchUsage` | `true` | Fable の使用率を使用量 API から取得する（下記） |
 
 文字の大きさはターミナル側の設定で決まるため、MOD からは変えられません。
@@ -74,7 +75,8 @@ Fable のバーが `--%` のままのときは、`/limit-bars raw` の結果を�
 ## 注意点
 
 - **使用量 API は公式ドキュメントのない窓口です。** 応答の形は第三者ツール [ccusage](https://pypi.org/project/ccusage/) の説明を参考にしており、予告なく変わったり使えなくなったりする可能性があります。その場合も 5時間と Weekly のバーは影響を受けません。
-- Fable の上限は Max プラン（および Team / Enterprise の premium seat）で「週の上限の 50% まで」です（[Claude Fable models on your plan](https://support.claude.com/en/articles/15424964)）。Pro プランでは Fable はプランの上限に含まれません。
+- Fable の上限は Max プラン（および Team / Enterprise の premium seat）で「週の上限の 50% まで」です（[Claude Fable models on your plan](https://support.claude.com/en/articles/15424964)）。Pro プランでは Fable はプランの上限に含まれないため、既定（`showFable: auto`）では使用量 API の応答に Fable の枠がないことを確かめた時点で Fable のバーを隠し、5時間と Weekly の 2 本だけを表示します。MOD からはプランの種類を直接読めないため、応答の中身で判断しています。
+- 使用量 API の取得に失敗したときや、起動直後でまだ取得していないときは、プランにかかわらず Fable のバーを `--%` で表示します。
 - 数値が届くのは Claude のサブスクリプション（Pro / Max など）でログインしている場合だけです。API キーで使っている場合は、すべて `--%` のままになります。
 - 起動直後は最初の API 応答が返るまで `--%` と表示されることがあります。
 - バー右端の `[-]` で折りたたむことができます。
