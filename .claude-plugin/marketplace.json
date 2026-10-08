@@ -1,0 +1,13 @@
+{
+  "name": "claudecode-limitusage-mods",
+  "description": "Claude Code のレートリミット使用率を表示する MOD 集",
+  "owner": {
+    "name": "solaris-gun"
+  },
+  "plugins": [
+    {
+      "name": "limit-bars",
+      "source": "./"
+    }
+  ]
+}
