@@ -11,15 +11,15 @@ export type Layout = 'auto' | 'inline' | 'stacked'
 const FILLED = '█'
 const EMPTY = '░'
 
-// 表示順はリクエストどおり Weekly → 5時間 → Fable
+// 表示順は 5時間 → Weekly → Fable
 export function pickRows(windows: readonly LimitWindow[], fableWindow: string): BarRow[] {
   const needle = fableWindow.toLowerCase()
   const find = (match: (kind: string) => boolean) =>
     windows.find(w => match(w.kind.toLowerCase()))?.percentUsed ?? null
 
   return [
-    { key: 'weekly', label: 'Weekly', percent: find(k => k === 'seven_day') },
     { key: 'five-hour', label: '5時間', percent: find(k => k === 'five_hour') },
+    { key: 'weekly', label: 'Weekly', percent: find(k => k === 'seven_day') },
     {
       key: 'fable',
       label: 'Fable',

@@ -27,11 +27,11 @@ const measured = {
 } as const
 
 describe('bars', () => {
-  test('picks the windows in Weekly, 5時間, Fable order', () => {
+  test('picks the windows in 5時間, Weekly, Fable order', () => {
     const rows = pickRows(measured.rateLimits, 'fable')
     expect(rows.map(r => [r.label, r.percent])).toEqual([
-      ['Weekly', 23.5],
       ['5時間', 61],
+      ['Weekly', 23.5],
       ['Fable', 92.4],
     ])
   })
