@@ -1,0 +1,34 @@
+{
+  "name": "limit-bars",
+  "version": "0.1.0",
+  "description": "プロンプトの上に Weekly / 5時間 / Fable の使用率を色付きバーで常時表示する",
+  "author": {
+    "name": "solaris-gun"
+  },
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "barWidth": {
+      "type": "number",
+      "title": "バーの長さ",
+      "description": "1本のバーの文字数（4〜40）",
+      "default": 12
+    },
+    "layout": {
+      "type": "string",
+      "title": "並べ方",
+      "description": "auto: 幅が足りれば横一列、足りなければ縦に積む / inline: 常に横一列 / stacked: 常に縦",
+      "options": [
+        "auto",
+        "inline",
+        "stacked"
+      ],
+      "default": "auto"
+    },
+    "fableWindow": {
+      "type": "string",
+      "title": "Fable 枠の識別子",
+      "description": "Fable の使用率として扱うレートリミット枠の kind に含まれる文字列",
+      "default": "fable"
+    }
+  }
+}
