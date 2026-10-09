@@ -1,9 +1,9 @@
 # limit-bars
 
-Claude Code のプロンプト入力欄のすぐ上に、レートリミットの使用率を色付きの横バーで常に表示する MOD です。
+Claude Code のプロンプト入力欄のすぐ上に、レートリミットの使用率を色付きの横バーで、その横に今使っているモデルと Effort を常に表示する MOD です。
 
 ```
-5h ▄▄▄▄▄▁▁▁  61%  W ▄▄▁▁▁▁▁▁  24%  F ▄▄▄▁▁▁▁▁  34%
+5h ▄▄▄▄▄▁▁▁  61%  W ▄▄▁▁▁▁▁▁  24%  F ▄▄▄▁▁▁▁▁  34%  Opus 5.5 · high
 ```
 
 - 表示順: **5時間（5h）→ Weekly（W）→ Fable（F）**
@@ -11,6 +11,7 @@ Claude Code のプロンプト入力欄のすぐ上に、レートリミット�
 - 色: 0〜49% は緑、50〜79% は黄、80% 以上は赤（太字）。色はお使いのテーマ（`success` / `warning` / `error`）に合わせて変わります
 - ターミナルの幅が足りないときは、自動で縦 3 段に並べ替えます
 - まだ数値が届いていない枠は `--%` と灰色で表示します
+- バーの右に、今使っているモデルと Effort を灰色で表示します（最初の応答までは Effort が `--`）
 
 ## インストール
 
@@ -44,6 +45,7 @@ claude --plugin-dir ./claudecode_limitusage_mods
 | `fableWindow` | `fable` | Fable を見分ける文字列（枠の名前やモデル名に含まれるもの） |
 | `showFable` | `auto` | `auto`: 使用量 API の応答に Fable の枠がなければ（Pro プランなど）Fable のバーを出さない / `always`: 常に出す / `never`: 出さない |
 | `fetchUsage` | `true` | Fable の使用率を使用量 API から取得する（下記） |
+| `showModel` | `true` | バーの横に、今使っているモデルと Effort を表示する |
 
 文字の大きさはターミナル側の設定で決まるため、MOD からは変えられません。
 
@@ -54,6 +56,8 @@ claude --plugin-dir ./claudecode_limitusage_mods
 | 5時間 | Claude Code が MOD に渡す枠 `five_hour`（ステータスラインと同じ値） |
 | Weekly | Claude Code が MOD に渡す枠 `seven_day` |
 | Fable | 使用量 API `https://api.anthropic.com/api/oauth/usage` の応答のうち、`fable` を含む枠 |
+| モデル | 起動時は `/model` と同じ値（`$.session.model()`）。その後はモデルへのリクエストごと（`turn.step`）と `/model` での切り替え時に更新 |
+| Effort | モデルへのリクエストごと（`turn.step`）に、そのリクエストで使う Effort を読む。サブエージェントのリクエストは対象外 |
 
 5時間と Weekly は、API の応答ごと、または使用率が 1 ポイント動くたびに Claude Code から届き、そのたびにバーが更新されます。
 

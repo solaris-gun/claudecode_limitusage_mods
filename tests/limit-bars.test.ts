@@ -6,8 +6,10 @@ import {
   describeRaw,
   describeWindows,
   inlineWidth,
+  modelText,
   percentText,
   pickRows,
+  shortModel,
   splitBar,
   visibleRows,
 } from '../hooks/bars'
@@ -136,6 +138,27 @@ describe('fable visibility', () => {
   })
 })
 
+describe('model and effort', () => {
+  test('shortens model ids', () => {
+    expect(shortModel('claude-opus-5-5')).toBe('Opus 5.5')
+    expect(shortModel('claude-fable-5-1')).toBe('Fable 5.1')
+    expect(shortModel('claude-sonnet-5-5-20260101')).toBe('Sonnet 5.5')
+    expect(shortModel('claude-opus-5-5[1m]')).toBe('Opus 5.5[1m]')
+    expect(shortModel('some-gateway-model')).toBe('some-gateway-model')
+  })
+
+  test('joins model and effort', () => {
+    expect(modelText({ model: 'claude-opus-5-5', effort: 'high' })).toBe('Opus 5.5 · high')
+    expect(modelText({ model: 'claude-haiku-5-5', effort: null })).toBe('Haiku 5.5 · --')
+    expect(modelText({ model: null, effort: null })).toBe('')
+  })
+
+  test('counts the model text in the row width', () => {
+    const rows = pickRows([], 'fable', null, 'short')
+    expect(inlineWidth(rows, 8, 'Opus 5.5 · high')).toBe(inlineWidth(rows, 8) + 2 + 15)
+  })
+})
+
 describe('usage api', () => {
   test('finds the Fable entry in the limits array', () => {
     expect(findScopedPercent(usageBody, 'fable')).toEqual({ percent: 34, resetsAt: '2026-10-09T01:00:00Z' })
@@ -217,5 +240,60 @@ test('showFable always keeps the Fable bar', { options: { showFable: 'always' } 
 
   const ui = await $.ui.mount({ ...band(80), surface: 'terminal' })
   expect((await ui.find({ key: 'fable' }))?.text).toMatch(/--%/)
+  await ui.unmount()
+})
+
+// /model での切り替え（PostModelSwitch）をエンジン役として起こす
+const switchTo = (toModel: string) => ({
+  from_model: 'claude-opus-5-5',
+  to_model: toModel,
+  requested_model: null,
+  source: 'command' as const,
+  context_tokens: 0,
+  prompt_cache_warm: false,
+  cache_ttl: '5m' as const,
+  estimated_cache_write_usd: 0,
+  pricing: 'default' as const,
+})
+
+test('shows the model beside the bars after /model', async ($, on) => {
+  engine(on, null)
+  on('classic.PostModelSwitch', () => ({}))
+  await $.classic.PostModelSwitch(switchTo('claude-fable-5-1'))
+
+  const ui = await $.ui.mount({ ...band(120), surface: 'terminal' })
+  expect((await ui.find({ key: 'model' }))?.text).toBe('Fable 5.1 · --')
+  expect((await ui.find({ key: 'limit-bars' }))?.props.flexDirection).toBe('row')
+  await ui.unmount()
+})
+
+test('showModel false hides the model', { options: { showModel: false } }, async ($, on) => {
+  engine(on, null)
+  on('classic.PostModelSwitch', () => ({}))
+  await $.classic.PostModelSwitch(switchTo('claude-opus-5-5'))
+
+  const ui = await $.ui.mount({ ...band(120), surface: 'terminal' })
+  expect(await ui.find({ key: 'model' })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('reads the model and effort of each request, not a subagent’s', async ($, on) => {
+  engine(on, null)
+  on('turn.step', async function* (_$, e) {
+    return { turnId: e.turnId, index: e.index, answer: '', toolUses: [], stopReason: 'end_turn', usage: null } as never
+  })
+  // ストリームは最後まで読むと流れる
+  const step = async (model: string, effort: 'low' | 'high', agentId?: string) => {
+    const stream = $.turn.step({ turnId: 't', index: 0, model, effort, messageCount: 1, ...(agentId === undefined ? {} : { agentId }) })
+    for await (const _ of stream) {
+      // 中身は使わない
+    }
+  }
+
+  await step('claude-opus-5-5', 'high')
+  await step('claude-haiku-5-5', 'low', 'sub-agent')
+
+  const ui = await $.ui.mount({ ...band(120), surface: 'terminal' })
+  expect((await ui.find({ key: 'model' }))?.text).toBe('Opus 5.5 · high')
   await ui.unmount()
 })
