@@ -1,4 +1,4 @@
-import type { FableReading, LimitWindow } from '../types'
+import type { FableReading, LimitWindow, ModelInfo } from '../types'
 
 export type BarRow = {
   key: string
@@ -116,19 +116,51 @@ export function padLabel(label: string, cells: number): string {
 
 const GAP = 2
 
-// 横一列に並べたときの全体幅
-export function inlineWidth(rows: readonly BarRow[], barWidth: number): number {
-  const segments = rows.map(r => cellWidth(r.label) + 1 + barWidth + 1 + 4)
+// claude-opus-5-5 → Opus 5.5、claude-sonnet-5-5-20260101 → Sonnet 5.5。読めない名前は claude- を外してそのまま
+export function shortModel(id: string): string {
+  const name = id.replace(/^claude-/, '').replace(/-\d{8}$/, '')
+  const match = /^(fable|opus|sonnet|haiku)-(\d+)(?:-(\d+))?(.*)$/.exec(name)
+  if (match === null) {
+    return name
+  }
 
-  return segments.reduce((a, b) => a + b, 0) + GAP * (rows.length - 1)
+  const [, family = '', major, minor, rest = ''] = match
+  const version = minor === undefined ? major : `${major}.${minor}`
+
+  return `${family.charAt(0).toUpperCase()}${family.slice(1)} ${version}${rest}`
 }
 
-export function isInline(layout: Layout, rows: readonly BarRow[], barWidth: number, columns: number): boolean {
+// バーの横に出すモデルと Effort の文字列。どちらも分からなければ空
+export function modelText(info: ModelInfo | null): string {
+  if (info === null || (info.model === null && info.effort === null)) {
+    return ''
+  }
+
+  return `${info.model === null ? '--' : shortModel(info.model)} · ${info.effort ?? '--'}`
+}
+
+// 横一列に並べたときの全体幅（extra はバーの横に足す文字列）
+export function inlineWidth(rows: readonly BarRow[], barWidth: number, extra = ''): number {
+  const segments = rows.map(r => cellWidth(r.label) + 1 + barWidth + 1 + 4)
+  if (extra !== '') {
+    segments.push(cellWidth(extra))
+  }
+
+  return segments.reduce((a, b) => a + b, 0) + GAP * (segments.length - 1)
+}
+
+export function isInline(
+  layout: Layout,
+  rows: readonly BarRow[],
+  barWidth: number,
+  columns: number,
+  extra = '',
+): boolean {
   if (layout !== 'auto') {
     return layout === 'inline'
   }
 
-  return inlineWidth(rows, barWidth) <= columns
+  return inlineWidth(rows, barWidth, extra) <= columns
 }
 
 export const SEGMENT_GAP = GAP

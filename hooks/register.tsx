@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { LimitWindow } from '../types'
+import type { LimitWindow, ModelInfo } from '../types'
 import {
   SEGMENT_GAP,
   cellWidth,
@@ -10,6 +10,7 @@ import {
   describeRaw,
   describeWindows,
   isInline,
+  modelText,
   padLabel,
   percentText,
   pickRows,
@@ -24,6 +25,7 @@ import { USAGE_BETA, USAGE_URL, failedReading, readingFrom } from './usage-api'
 
 const windows = atom({ plugin: 'limit-bars', key: 'windows' } as const, [])
 const fable = atom({ plugin: 'limit-bars', key: 'fable' } as const, null)
+const model = atom({ plugin: 'limit-bars', key: 'model' } as const, { model: null, effort: null })
 
 // 使用量 API へ問い合わせる最短間隔
 const FETCH_INTERVAL_MS = 2 * 60 * 1000
@@ -62,6 +64,15 @@ async function refreshFable($: EngineInterface, enabled: boolean, fableWindow: s
   }
 }
 
+// 変わったときだけ書き込む（書き込むたびに帯が描き直されるため）
+async function setModel($: EngineInterface, next: Partial<ModelInfo>) {
+  const current = await read($, model)
+  const merged = { ...current, ...next }
+  if (merged.model !== current.model || merged.effort !== current.effort) {
+    await update($, model, () => merged)
+  }
+}
+
 export const register: Register = (on, options) => {
   const barWidth = clampWidth(options.barWidth)
   const layout = toLayout(options.layout)
@@ -70,6 +81,7 @@ export const register: Register = (on, options) => {
   const fableWindow = typeof options.fableWindow === 'string' ? options.fableWindow : 'fable'
   const fetchUsage = options.fetchUsage !== false
   const showFable = toShowFable(options.showFable)
+  const showModel = options.showModel !== false
 
   // 起動直後（リロード後も含む）に、その時点の数値を取り込む
   on('session.start', async ($, e, next) => {
@@ -81,10 +93,31 @@ export const register: Register = (on, options) => {
     })
     const { rateLimits } = await $.session.usage()
     await update($, windows, () => toWindows(rateLimits))
+    await setModel($, { model: await $.session.model() })
     await refreshFable($, fetchUsage, fableWindow, true)
 
     return result
   })
+
+  // モデルへのリクエストごとに、使うモデルと Effort が分かる（サブエージェントの分は除く）
+  on('turn.step', async function* ($, e, next) {
+    if (e.agentId === undefined) {
+      try {
+        await setModel($, { model: e.model, effort: e.effort === undefined ? null : String(e.effort) })
+      } catch {
+        // 表示用の記録に失敗しても、モデルへのリクエストは止めない
+      }
+    }
+
+    return yield* next(e)
+  })
+
+  // /model で切り替えたとき
+  on('classic.PostModelSwitch', async ($, e, next) => {
+    await setModel($, { model: e.to_model })
+
+    return next(e)
+  }).catch(($, e, next) => next(e))
 
   on('command.run', { command: 'limit-bars' }, async ($, e) => {
     const { rateLimits } = await $.session.usage()
@@ -118,7 +151,8 @@ export const register: Register = (on, options) => {
     const { Box, Text } = $.ui.resolve(e)
     const reading = await read($, fable)
     const rows = visibleRows(pickRows(await read($, windows), fableWindow, reading, labelStyle), showFable, reading)
-    const inline = isInline(layout, rows, barWidth, e.props.bodyColumns)
+    const info = showModel ? modelText(await read($, model)) : ''
+    const inline = isInline(layout, rows, barWidth, e.props.bodyColumns, info)
     const labelCells = inline ? 0 : Math.max(...rows.map(r => cellWidth(r.label)))
 
     const segments = rows.map(row => {
@@ -141,6 +175,11 @@ export const register: Register = (on, options) => {
     return (
       <Box key="limit-bars" flexDirection={inline ? 'row' : 'column'} columnGap={SEGMENT_GAP}>
         {segments}
+        {info === '' ? null : (
+          <Box key="model">
+            <Text dimColor>{info}</Text>
+          </Box>
+        )}
       </Box>
     )
   })

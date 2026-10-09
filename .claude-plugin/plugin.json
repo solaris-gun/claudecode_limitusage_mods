@@ -1,7 +1,7 @@
 {
   "name": "limit-bars",
-  "version": "0.3.0",
-  "description": "プロンプトの上に Weekly / 5時間 / Fable の使用率を色付きバーで常時表示する",
+  "version": "0.4.0",
+  "description": "プロンプトの上に 5時間 / Weekly / Fable の使用率を色付きバーで、横に今のモデルと Effort を常時表示する",
   "author": {
     "name": "solaris-gun"
   },
@@ -66,6 +66,12 @@
       "type": "boolean",
       "title": "Fable を使用量 API から取得する",
       "description": "Claude Code の /usage と同じ取得先（公式ドキュメントのない https://api.anthropic.com/api/oauth/usage）に 2 分以上の間隔で問い合わせる",
+      "default": true
+    },
+    "showModel": {
+      "type": "boolean",
+      "title": "モデルと Effort を表示する",
+      "description": "バーの横に、今使っているモデルと Effort（例: Opus 5.5 · high）を表示する",
       "default": true
     }
   }
